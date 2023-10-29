@@ -1,37 +1,30 @@
-use crate::raytracing::TriangleInfo;
 use eframe::egui::Vec2;
 use eframe::egui_wgpu;
 use eframe::{egui, Frame};
 
 use crate::gpu::{self, RenderCallBack};
 
-pub struct AppUI {
-    triangle_info: TriangleInfo,
-}
+pub struct AppUI {}
 
 impl AppUI {
     pub fn new(eframe_context: &eframe::CreationContext) -> Self {
         let wgpu_render_state = eframe_context.wgpu_render_state.as_ref().unwrap();
-        let triangle_info = TriangleInfo { angle: 0.0 };
-        let resources = gpu::get_render_resources(wgpu_render_state, &triangle_info);
+        let resources = gpu::get_render_resources(wgpu_render_state);
         wgpu_render_state
             .renderer
             .write()
             .callback_resources
             .insert(resources);
-        return AppUI { triangle_info };
+        return AppUI {};
     }
 
     fn ray_tracer_ui(&mut self, ui: &mut egui::Ui) -> Vec2 {
         let size = ui.available_size();
         let (rect, response) = ui.allocate_exact_size(size, egui::Sense::drag());
-        self.triangle_info.angle += response.drag_delta().x * 0.01;
 
         ui.painter().add(egui_wgpu::Callback::new_paint_callback(
             rect,
-            RenderCallBack {
-                triangle_info: self.triangle_info,
-            },
+            RenderCallBack {},
         ));
         size
     }
