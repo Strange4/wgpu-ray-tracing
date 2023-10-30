@@ -1,18 +1,29 @@
 mod app;
 mod gpu;
 mod raytracing;
+
 use eframe;
+use eframe::egui_wgpu::wgpu;
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> Result<(), eframe::Error> {
+    use std::sync::Arc;
+
     let options = eframe::NativeOptions {
         renderer: eframe::Renderer::Wgpu,
         multisampling: 1,
+        wgpu_options: eframe::egui_wgpu::WgpuConfiguration {
+            device_descriptor: Arc::new(|_| wgpu::DeviceDescriptor {
+                features: wgpu::Features::TIMESTAMP_QUERY,
+                ..Default::default()
+            }),
+            ..Default::default()
+        },
         ..Default::default()
     };
 
     eframe::run_native(
-        "some name",
+        "real time ray tracer",
         options,
         Box::new(|cc| Box::new(app::AppUI::new(cc))),
     )

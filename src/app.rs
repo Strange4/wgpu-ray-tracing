@@ -1,10 +1,15 @@
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
+
 use eframe::egui::Vec2;
 use eframe::egui_wgpu;
 use eframe::{egui, Frame};
 
 use crate::gpu::{self, RenderCallBack};
 
-pub struct AppUI {}
+pub struct AppUI {
+    render_time: Arc<AtomicU64>,
+}
 
 impl AppUI {
     pub fn new(eframe_context: &eframe::CreationContext) -> Self {
@@ -15,16 +20,20 @@ impl AppUI {
             .write()
             .callback_resources
             .insert(resources);
-        return AppUI {};
+        return AppUI {
+            render_time: Arc::new(AtomicU64::new(0)),
+        };
     }
 
     fn ray_tracer_ui(&mut self, ui: &mut egui::Ui) -> Vec2 {
         let size = ui.available_size();
-        let (rect, response) = ui.allocate_exact_size(size, egui::Sense::drag());
+        let (rect, _) = ui.allocate_exact_size(size, egui::Sense::focusable_noninteractive());
 
         ui.painter().add(egui_wgpu::Callback::new_paint_callback(
             rect,
-            RenderCallBack {},
+            RenderCallBack {
+                render_time: self.render_time.clone(),
+            },
         ));
         size
     }
@@ -42,6 +51,8 @@ impl eframe::App for AppUI {
                 .default_size((100.0, 100.0))
                 .show(context, |ui| {
                     ui.label(format!("Here is the size: {:?}", size));
+                    let shader_time = f64::from_bits(self.render_time.load(Ordering::Relaxed));
+                    ui.label(format!("Shader run time: {:.3}ms", shader_time));
                 });
         });
     }
