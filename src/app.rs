@@ -21,7 +21,7 @@ impl AppUI {
             .callback_resources
             .insert(resources);
         return AppUI {
-            render_time: Arc::new(AtomicU64::new(0)),
+            render_time: Arc::new(AtomicU64::new((f64::NAN).to_bits())),
         };
     }
 
@@ -40,7 +40,7 @@ impl AppUI {
 }
 
 impl eframe::App for AppUI {
-    fn update(&mut self, context: &egui::Context, _frame: &mut Frame) {
+    fn update(&mut self, context: &egui::Context, frame: &mut Frame) {
         egui::CentralPanel::default().show(context, |ui| {
             let mut size = Vec2::new(0.0, 0.0);
             egui::Frame::canvas(ui.style()).show(ui, |ui| {
@@ -52,7 +52,11 @@ impl eframe::App for AppUI {
                 .show(context, |ui| {
                     ui.label(format!("Here is the size: {:?}", size));
                     let shader_time = f64::from_bits(self.render_time.load(Ordering::Relaxed));
-                    ui.label(format!("Shader run time: {:.3}ms", shader_time));
+                    ui.label(format!("Shader run time: {:.3} ms", shader_time));
+
+                    if let Some(usage) = frame.info().cpu_usage {
+                        ui.label(format!("egui render time: {:.3} ms", usage * 1000.0));
+                    }
                 });
         });
     }

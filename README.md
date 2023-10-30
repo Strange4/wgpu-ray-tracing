@@ -3,6 +3,6 @@
 `RUSTFLAGS=--cfg=web_sys_unstable_apis trunk serve`
 
 
-# DONE
+# Done
 
-- Make make a query to the gpu and render the image directly onto the texture
+- Make make a query to the gpu and see the time taken to render an image
