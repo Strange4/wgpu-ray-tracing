@@ -47,12 +47,16 @@ impl eframe::App for AppUI {
                 size = self.ray_tracer_ui(ui);
             });
             egui::Window::new("Info")
-                // .anchor(egui::Align2::CENTER_TOP, (0.0, 0.0))
                 .default_size((100.0, 100.0))
                 .show(context, |ui| {
                     ui.label(format!("Here is the size: {:?}", size));
                     let shader_time = f64::from_bits(self.render_time.load(Ordering::Relaxed));
-                    ui.label(format!("Shader run time: {:.3} ms", shader_time));
+                    let shader_time = if shader_time.is_nan() {
+                        "Shader run time: not available".to_string()
+                    } else {
+                        format!("Shader run time: {:.3} ms", shader_time)
+                    };
+                    ui.label(shader_time);
 
                     if let Some(usage) = frame.info().cpu_usage {
                         ui.label(format!("egui render time: {:.3} ms", usage * 1000.0));

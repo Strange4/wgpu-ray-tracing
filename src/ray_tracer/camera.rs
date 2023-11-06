@@ -1,0 +1,2 @@
+pub const OUTPUT_TEXTURE_WIDTH: u32 = 1920;
+pub const OUTPUT_TEXTURE_HEIGHT: u32 = 1080;

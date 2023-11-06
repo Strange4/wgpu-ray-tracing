@@ -19,6 +19,11 @@ serde = { version = "1.0.188", features = ["derive"] }
 log = "0.4"
 cfg-if = "1.0.0"
 
+# for the examples
+[dev-dependencies]
+wgsl_preprocessor = "1.1.3"
+pollster = "0.3"
+
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen-futures = "0.4"

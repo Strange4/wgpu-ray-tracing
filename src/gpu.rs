@@ -5,8 +5,7 @@ use eframe::{
     wgpu::{util::DeviceExt, BindGroup, BindGroupLayout, Buffer, Device, QuerySet},
 };
 
-const OUTPUT_TEXTURE_WIDTH: u32 = 1920;
-const OUTPUT_TEXTURE_HEIGHT: u32 = 1080;
+use crate::ray_tracer::camera::{OUTPUT_TEXTURE_HEIGHT, OUTPUT_TEXTURE_WIDTH};
 
 pub fn get_render_resources(wgpu_render_state: &RenderState) -> RenderResources {
     let device = &wgpu_render_state.device;
@@ -245,10 +244,8 @@ impl egui_wgpu::CallbackTrait for RenderCallBack {
         }
 
         // well let's hope this works
-        if let Some((query, read_buffer, query_buffer)) = &resources.time_query {
+        if let Some((query, _, _)) = &resources.time_query {
             encoder.write_timestamp(query, 1);
-            encoder.resolve_query_set(query, 0..2, &query_buffer, 0);
-            encoder.copy_buffer_to_buffer(query_buffer, 0, read_buffer, 0, read_buffer.size());
         }
 
         Vec::new()
@@ -258,24 +255,32 @@ impl egui_wgpu::CallbackTrait for RenderCallBack {
         &self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        _egui_encoder: &mut wgpu::CommandEncoder,
+        encoder: &mut wgpu::CommandEncoder,
         resources: &mut egui_wgpu::CallbackResources,
     ) -> Vec<wgpu::CommandBuffer> {
         let resources: &RenderResources = resources.get().unwrap();
 
-        // well let's hope this works
-        if let Some((_, read_buffer, _)) = &resources.time_query {
+        // this doesn't have to be here and could could be done in the
+        // reads the buffer and stores the render time
+        // Since the render pass hasn't passed yet, it will read 0 for the first frame and then the previous frame render time
+        if let Some((query, read_buffer, query_buffer)) = &resources.time_query {
+            encoder.resolve_query_set(query, 0..2, &query_buffer, 0);
+            encoder.copy_buffer_to_buffer(query_buffer, 0, read_buffer, 0, read_buffer.size());
+
             let buffer_slice = read_buffer.slice(..);
             buffer_slice.map_async(wgpu::MapMode::Read, |_| {});
 
+            // wait for the map to be mapped
             device.poll(wgpu::Maintain::Wait);
+
             let period = queue.get_timestamp_period();
             let time_stamp_raw = buffer_slice.get_mapped_range();
             let time_stamp_data: &[u64] = bytemuck::cast_slice(&*time_stamp_raw);
             let time = (time_stamp_data[1] - time_stamp_data[0]) as f64 * period as f64 * 1e-6;
             self.render_time
                 .store(time.to_bits(), std::sync::atomic::Ordering::SeqCst);
-            drop(time_stamp_raw);
+
+            drop(time_stamp_raw); // have to drop the view into the buffer before unmapping
             read_buffer.unmap();
         }
         Vec::new()

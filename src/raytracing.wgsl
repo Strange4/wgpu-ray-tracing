@@ -6,5 +6,74 @@ var output_color: texture_storage_2d<rgba8unorm, write>;
 fn compute_main(@builtin(global_invocation_id) compute_id: vec3u) {
     let screen_position = compute_id.xy;
     let dimentions = textureDimensions(output_color);
-    textureStore(output_color, screen_position, vec4f(vec2f(screen_position) / vec2f(dimentions), 1.0, 1.0));
+    // this is commented out for debugging
+    // textureStore(output_color, screen_position / 2u, vec4f((vec2f(screen_position) / vec2f(dimentions)), 0.0, 1.0));
+    textureStore(output_color, screen_position, get_pixel_color(screen_position));
+}
+
+
+fn get_pixel_color(screen_position: vec2u) -> vec4f {
+    let viewport_v = vec3f(0.0, -viewport_height, 0.0);
+    let pixel_delta_u = viewport_u / f32(image_width);
+    let pixel_delta_v = viewport_v / f32(image_height);
+    let viewport_upper_left = camera_center - vec3f(0.0, 0.0, focal_length) - (viewport_u / 2.0) - (viewport_v / 2.0);
+    let pixel_00 = viewport_upper_left + 0.5 * (pixel_delta_u + pixel_delta_v);
+
+    let pixel_center = pixel_00 + (f32(screen_position.x) * pixel_delta_u) + (f32(screen_position.y) * pixel_delta_v);
+
+    let ray_direction = pixel_center - camera_center;
+
+    let ray = Ray(camera_center, ray_direction);
+    return vec4f(get_ray_color(ray), 1.0);
+}
+
+const main_sphere = Sphere(0.5, vec3f(0.0, 0.0, -1.0));
+fn get_ray_color(ray: Ray) -> vec3f {
+    if(hit_sphere(main_sphere, ray)) {
+        return vec3f(0.1, 0.2, 0.97);
+    }
+
+    let unit = ray.direction / length(ray.direction);
+    let a = 0.5 * (unit.y + 1.0);
+    return vec3f((1.0 - a) * vec3f(1.0) + a * vec3f(0.5, 0.7, 1.0));
+}
+
+
+// the camera stuff
+
+const image_width = 1920;
+const image_height = 1080;
+const viewport_height = 2.0;
+const viewport_width = 3.5555555555;
+
+const camera_center = vec3f();
+const focal_length = 1.0;
+
+const viewport_u = vec3f(viewport_width, 0.0, 0.0);
+
+// Ray part of the code
+
+struct Ray {
+    origin: vec3f,
+    direction: vec3f,
+}
+
+fn ray_at_distance(ray: Ray, t: f32) -> vec3f {
+    return ray.origin + t * ray.direction;
+}
+
+
+// Sphere part of the code
+struct Sphere {
+    radius: f32,
+    center: vec3f,
+}
+
+fn hit_sphere(sphere: Sphere, ray: Ray) -> bool {
+    let origin_center = ray.origin - sphere.center;
+    let a = dot(ray.direction, ray.direction);
+    let b = 2.0 * dot(origin_center, ray.direction);
+    let c = dot(origin_center, origin_center) - sphere.radius * sphere.radius;
+    let discriminant = (b*b) - (4.0 * a * c);
+    return discriminant >= 0.0;
 }

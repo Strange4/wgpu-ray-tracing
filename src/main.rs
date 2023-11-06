@@ -1,20 +1,21 @@
 mod app;
 mod gpu;
+mod ray_tracer;
 mod raytracing;
 
 use eframe;
 use eframe::egui_wgpu::wgpu;
+use std::sync::Arc;
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> Result<(), eframe::Error> {
-    use std::sync::Arc;
-
     let options = eframe::NativeOptions {
         renderer: eframe::Renderer::Wgpu,
         multisampling: 1,
         wgpu_options: eframe::egui_wgpu::WgpuConfiguration {
             device_descriptor: Arc::new(|_| wgpu::DeviceDescriptor {
                 features: wgpu::Features::TIMESTAMP_QUERY,
+                // | wgpu::Features::TIMESTAMP_QUERY_INSIDE_PASSES,
                 ..Default::default()
             }),
             ..Default::default()
