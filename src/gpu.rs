@@ -1,5 +1,6 @@
 use std::sync::{atomic::AtomicU64, Arc};
 
+use eframe::egui::Vec2;
 use eframe::{
     egui_wgpu::{self, wgpu, RenderState},
     wgpu::{util::DeviceExt, BindGroup, BindGroupLayout, Buffer, Device, QuerySet},
@@ -10,7 +11,7 @@ use crate::ray_tracer::camera::{OUTPUT_TEXTURE_HEIGHT, OUTPUT_TEXTURE_WIDTH};
 pub fn get_render_resources(wgpu_render_state: &RenderState) -> RenderResources {
     let device = &wgpu_render_state.device;
     let (compute_bind_group_layout, compute_bind_group, texture_view) = compute_bind_group(device);
-    let (fragment_bind_group_layout, fragment_bind_group) =
+    let (fragment_bind_group_layout, fragment_bind_group, fragment_buffers) =
         fragment_bind_group(device, &texture_view);
     let render_pipeline =
         get_render_pipeline(device, wgpu_render_state, &[&fragment_bind_group_layout]);
@@ -21,11 +22,15 @@ pub fn get_render_resources(wgpu_render_state: &RenderState) -> RenderResources 
         render_pipeline,
         compute_bind_group,
         compute_pipeline,
+        fragment_buffers,
         time_query: get_time_query(device, &adapter),
     }
 }
 
-fn fragment_bind_group(device: &Device, view: &wgpu::TextureView) -> (BindGroupLayout, BindGroup) {
+fn fragment_bind_group(
+    device: &Device,
+    view: &wgpu::TextureView,
+) -> (BindGroupLayout, BindGroup, Buffer) {
     let texture_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
         label: Some("Sampler for the fragment texture"),
         mag_filter: wgpu::FilterMode::Nearest, // the way to scale up a pixel in the texture. Take the nearest pixel or linearly interpolate between pixels
@@ -36,6 +41,7 @@ fn fragment_bind_group(device: &Device, view: &wgpu::TextureView) -> (BindGroupL
     let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
         label: Some("Fragment bind group layout"),
         entries: &[
+            // texture
             wgpu::BindGroupLayoutEntry {
                 binding: 0,
                 visibility: wgpu::ShaderStages::FRAGMENT,
@@ -46,13 +52,31 @@ fn fragment_bind_group(device: &Device, view: &wgpu::TextureView) -> (BindGroupL
                 },
                 count: None,
             },
+            // sampler
             wgpu::BindGroupLayoutEntry {
                 binding: 1,
                 visibility: wgpu::ShaderStages::FRAGMENT,
                 ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
                 count: None,
             },
+            wgpu::BindGroupLayoutEntry {
+                binding: 2,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            },
         ],
+    });
+
+    let size_update_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("The buffer containing information for the fragment stange"),
+        size: std::mem::size_of::<FragmentUniform>() as u64,
+        mapped_at_creation: false,
+        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
     });
 
     let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -67,11 +91,19 @@ fn fragment_bind_group(device: &Device, view: &wgpu::TextureView) -> (BindGroupL
                 binding: 1,
                 resource: wgpu::BindingResource::Sampler(&texture_sampler),
             },
+            wgpu::BindGroupEntry {
+                binding: 2,
+                resource: size_update_buffer.as_entire_binding(),
+            },
         ],
     });
-    (bind_group_layout, bind_group)
+    (bind_group_layout, bind_group, size_update_buffer)
 }
 
+/**
+ * it returns the bindgroup layout, the texture view needed for the fragment pass
+ * and an array containing the indices of all the shared bind group entries
+ */
 fn compute_bind_group(device: &Device) -> (BindGroupLayout, BindGroup, wgpu::TextureView) {
     let texture_format = wgpu::TextureFormat::Rgba8Unorm;
     let texture = device.create_texture(&wgpu::TextureDescriptor {
@@ -95,7 +127,7 @@ fn compute_bind_group(device: &Device) -> (BindGroupLayout, BindGroup, wgpu::Tex
 
     // the bindgroup will only be used for the compute shader part
     let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        label: Some("Layout for the ray tracing output texture"),
+        label: Some("Layout for the compute bind group"),
         entries: &[wgpu::BindGroupLayoutEntry {
             binding: 0,
             visibility: wgpu::ShaderStages::COMPUTE,
@@ -109,7 +141,7 @@ fn compute_bind_group(device: &Device) -> (BindGroupLayout, BindGroup, wgpu::Tex
     });
 
     let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-        label: Some("Bind group for the output texture"),
+        label: Some("Bind group for the compute bind group"),
         layout: &bind_group_layout,
         entries: &[wgpu::BindGroupEntry {
             binding: 0,
@@ -208,19 +240,27 @@ pub struct RenderResources {
     render_pipeline: wgpu::RenderPipeline,
     compute_pipeline: wgpu::ComputePipeline,
     fragment_bind_group: wgpu::BindGroup,
+    fragment_buffers: Buffer,
     compute_bind_group: wgpu::BindGroup,
     time_query: Option<(wgpu::QuerySet, Buffer, Buffer)>,
 }
 
 pub struct RenderCallBack {
     pub render_time: Arc<AtomicU64>,
+    pub output_size: Vec2,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct FragmentUniform {
+    size: [f32; 2],
 }
 
 impl egui_wgpu::CallbackTrait for RenderCallBack {
     fn prepare(
         &self,
         _device: &wgpu::Device,
-        _queue: &wgpu::Queue,
+        queue: &wgpu::Queue,
         encoder: &mut wgpu::CommandEncoder,
         resources: &mut egui_wgpu::CallbackResources,
     ) -> Vec<wgpu::CommandBuffer> {
@@ -229,18 +269,23 @@ impl egui_wgpu::CallbackTrait for RenderCallBack {
             // write the query before computing
             encoder.write_timestamp(query, 0);
         }
-
+        queue.write_buffer(
+            &resources.fragment_buffers,
+            0,
+            bytemuck::cast_slice(&[FragmentUniform {
+                size: self.output_size.into(),
+            }]),
+        );
         {
             let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
                 label: Some("Compute pass"),
             });
+            // since the workgroups are 16x16, then the pixels are divided by 16;
+            let width = (self.output_size.x / 16.0) as u32;
+            let height = (self.output_size.y / 16.0) as u32;
             compute_pass.set_pipeline(&resources.compute_pipeline);
             compute_pass.set_bind_group(0, &resources.compute_bind_group, &[]);
-            compute_pass.dispatch_workgroups(
-                OUTPUT_TEXTURE_WIDTH / 16,
-                OUTPUT_TEXTURE_HEIGHT / 16,
-                1,
-            );
+            compute_pass.dispatch_workgroups(width, height, 1);
         }
 
         // well let's hope this works

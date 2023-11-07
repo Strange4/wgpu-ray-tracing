@@ -3,6 +3,13 @@ struct VertexOutput {
     @location(0) texture_coordinates: vec2f,
 }
 
+struct FragmentUniform {
+    size: vec2f,
+}
+
+@group(0) @binding(2)
+var<uniform> fragment_uniform: FragmentUniform;
+
 var<private> v_positions: array<vec2<f32>, 3> = array<vec2<f32>, 3>(
     vec2<f32>(0.0, 1.0),
     vec2<f32>(1.0, -1.0),
@@ -39,11 +46,13 @@ fn vertex_main(@builtin(vertex_index) index: u32) -> VertexOutput {
     return output;
 }
 
+
 @group(0) @binding(0)
 var texture_to_render: texture_2d<f32>;
 
 @group(0) @binding(1)
 var texture_sampler: sampler;
+
 
 @fragment
 fn fragment_main(input: VertexOutput) -> @location(0) vec4f {

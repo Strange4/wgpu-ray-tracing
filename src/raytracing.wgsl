@@ -29,11 +29,13 @@ fn get_pixel_color(screen_position: vec2u) -> vec4f {
 
 const main_sphere = Sphere(0.5, vec3f(0.0, 0.0, -1.0));
 fn get_ray_color(ray: Ray) -> vec3f {
-    if(hit_sphere(main_sphere, ray)) {
-        return vec3f(0.1, 0.2, 0.97);
+    let distance = hit_sphere(main_sphere, ray);
+    if(distance > 0.0) {
+        let normal = sphere_point_normal(ray_at_distance(ray, distance), main_sphere.center);
+        return 0.5 * (normal + 1.0);
     }
 
-    let unit = ray.direction / length(ray.direction);
+    let unit = normalize(ray.direction);
     let a = 0.5 * (unit.y + 1.0);
     return vec3f((1.0 - a) * vec3f(1.0) + a * vec3f(0.5, 0.7, 1.0));
 }
@@ -58,6 +60,10 @@ struct Ray {
     direction: vec3f,
 }
 
+fn length_squared(vector: vec3f) -> f32 {
+    return vector.x * vector.x + vector.y * vector.y + vector.z * vector.z;
+}
+
 fn ray_at_distance(ray: Ray, t: f32) -> vec3f {
     return ray.origin + t * ray.direction;
 }
@@ -69,11 +75,20 @@ struct Sphere {
     center: vec3f,
 }
 
-fn hit_sphere(sphere: Sphere, ray: Ray) -> bool {
+fn hit_sphere(sphere: Sphere, ray: Ray) -> f32 {
     let origin_center = ray.origin - sphere.center;
-    let a = dot(ray.direction, ray.direction);
-    let b = 2.0 * dot(origin_center, ray.direction);
-    let c = dot(origin_center, origin_center) - sphere.radius * sphere.radius;
-    let discriminant = (b*b) - (4.0 * a * c);
-    return discriminant >= 0.0;
+    let a = length_squared(ray.direction);
+    let half_b = dot(origin_center, ray.direction);
+    let c = length_squared(origin_center) - sphere.radius * sphere.radius;
+    let discriminant = half_b*half_b - a * c;
+    if(discriminant < 0.0) {
+        return -1.0;
+    }
+    return (-half_b - sqrt(discriminant)) / a;
+}
+
+// point is the point along the surface of the sphere that hit the sphere
+// center is the center of the sphere
+fn sphere_point_normal(point: vec3f, center: vec3f) -> vec3f {
+    return normalize(point - center);
 }
