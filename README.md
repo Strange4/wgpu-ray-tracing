@@ -2,6 +2,8 @@
 
 `RUSTFLAGS=--cfg=web_sys_unstable_apis trunk serve`
 
+# TODO:
+- Refactor the code to have more flexibility of creating and passing uniforms to the shader stages
 
 # Done
 

@@ -7,7 +7,7 @@ fn compute_main(@builtin(global_invocation_id) compute_id: vec3u) {
     let screen_position = compute_id.xy;
     let dimentions = textureDimensions(output_color);
     // this is commented out for debugging
-    // textureStore(output_color, screen_position / 2u, vec4f((vec2f(screen_position) / vec2f(dimentions)), 0.0, 1.0));
+    // textureStore(output_color, screen_position, vec4f((vec2f(screen_position) / vec2f(dimentions)), 0.0, 1.0));
     textureStore(output_color, screen_position, get_pixel_color(screen_position));
 }
 

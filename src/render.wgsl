@@ -6,15 +6,16 @@ struct VertexOutput {
 struct FragmentUniform {
     size: vec2f,
 }
+@group(0) @binding(0)
+var texture_to_render: texture_2d<f32>;
+
+@group(0) @binding(1)
+var texture_sampler: sampler;
 
 @group(0) @binding(2)
 var<uniform> fragment_uniform: FragmentUniform;
 
-var<private> v_positions: array<vec2<f32>, 3> = array<vec2<f32>, 3>(
-    vec2<f32>(0.0, 1.0),
-    vec2<f32>(1.0, -1.0),
-    vec2<f32>(-1.0, -1.0),
-);
+// This has to be outside the function or it shit's it's pants
 var<private> vertex_positions: array<vec2f, 6> =  array<vec2f, 6>(
     // bottom right triangle
     vec2f(1.0, 1.0),
@@ -27,32 +28,37 @@ var<private> vertex_positions: array<vec2f, 6> =  array<vec2f, 6>(
     vec2f(-1.0, 1.0),
 );
 
-var<private> texture_for_vertex: array<vec2f, 6> = array<vec2f, 6>(
-    // bottom right triangle
-    vec2f(1.0, 0.0),
-    vec2f(0.0, 1.0),
-    vec2f(1.0, 1.0),
-
-    // top left triangle
-    vec2f(1.0, 0.0),
-    vec2f(0.0, 1.0),
-    vec2f(0.0, 0.0),
-);
 @vertex
 fn vertex_main(@builtin(vertex_index) index: u32) -> VertexOutput {
+    let texture_dimentions: vec2u = textureDimensions(texture_to_render);
+
+    let texture_percentage_filled: vec2f = fragment_uniform.size / vec2f(texture_dimentions);
+
     var output: VertexOutput;
     output.clip_position = vec4f(vertex_positions[index], 0.0, 1.0);
-    output.texture_coordinates = texture_for_vertex[index];
+    switch index {
+        case 0u: {
+            output.texture_coordinates = vec2f(texture_percentage_filled.x, 0.0);
+        }
+        case 1u {
+            output.texture_coordinates = vec2f(0.0, texture_percentage_filled.y);
+        }
+        case 2u: {
+            output.texture_coordinates = vec2f(texture_percentage_filled.x, texture_percentage_filled.y);
+        }
+        case 3u {
+            output.texture_coordinates = vec2f(texture_percentage_filled.x, 0.0);
+        }
+        case 4u: {
+            output.texture_coordinates = vec2f(0.0, texture_percentage_filled.y);
+        }
+        case 5u {
+            output.texture_coordinates = vec2f(0.0, 0.0);
+        }
+        default: {}
+    }
     return output;
 }
-
-
-@group(0) @binding(0)
-var texture_to_render: texture_2d<f32>;
-
-@group(0) @binding(1)
-var texture_sampler: sampler;
-
 
 @fragment
 fn fragment_main(input: VertexOutput) -> @location(0) vec4f {
