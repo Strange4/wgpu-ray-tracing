@@ -1,7 +1,6 @@
 mod app;
 mod gpu;
 mod ray_tracer;
-mod raytracing;
 
 use eframe;
 use eframe::egui_wgpu::wgpu;

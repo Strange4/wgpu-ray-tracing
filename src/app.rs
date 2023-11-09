@@ -5,7 +5,7 @@ use eframe::egui::Vec2;
 use eframe::egui_wgpu;
 use eframe::{egui, Frame};
 
-use crate::gpu::{self, RenderCallBack};
+use crate::gpu;
 
 pub struct AppUI {
     render_time: Arc<AtomicU64>,
@@ -31,7 +31,7 @@ impl AppUI {
 
         ui.painter().add(egui_wgpu::Callback::new_paint_callback(
             rect,
-            RenderCallBack {
+            gpu::RenderCallBack {
                 render_time: self.render_time.clone(),
                 output_size: size,
             },
