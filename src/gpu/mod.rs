@@ -21,21 +21,22 @@ pub fn get_render_resources(wgpu_render_state: &eframe::egui_wgpu::RenderState) 
 
     let (texture, texture_view) = get_output_texture(device);
 
-    let (compute_bind_group_layout, compute_bind_group) =
+    let (compute_bind_group_layouts, compute_bind_groups) =
         get_ray_tracing_bind_group(device, &texture_view, texture.format());
 
-    let (output_bind_group_layout, output_bind_group, output_buffers) =
+    let (render_bind_group_layouts, render_bind_groups, render_buffers) =
         get_render_bind_group(device, &texture_view, &shared_stage_data);
 
-    let render_pipeline = get_render_pipeline(device, wgpu_render_state, &output_bind_group_layout);
-    let compute_pipeline = get_compute_pipeline(device, &compute_bind_group_layout);
+    let render_pipeline =
+        get_render_pipeline(device, wgpu_render_state, &render_bind_group_layouts);
+    let compute_pipeline = get_compute_pipeline(device, &compute_bind_group_layouts);
     let adapter = &wgpu_render_state.adapter;
     RenderResources {
         render_pipeline,
-        render_bind_groups: output_bind_group,
-        compute_bind_groups: compute_bind_group,
+        render_bind_groups,
+        compute_bind_groups,
         compute_pipeline,
-        render_buffers: output_buffers,
+        render_buffers,
         shared_stage_data,
         time_query: get_time_query(device, &adapter),
     }
