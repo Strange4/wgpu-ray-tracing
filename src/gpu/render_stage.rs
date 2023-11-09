@@ -5,7 +5,7 @@ use crate::ray_tracer::camera::{OUTPUT_TEXTURE_HEIGHT, OUTPUT_TEXTURE_WIDTH};
 use super::shared_stage_data::SharedStageData;
 
 pub type RenderBindGroup = [BindGroup; 1];
-pub type OutputBindGroupLayout = [BindGroupLayout; 1];
+pub type RenderBindGroupLayout = [BindGroupLayout; 1];
 
 pub struct RenderBuffers {}
 
@@ -13,7 +13,7 @@ pub fn get_render_bind_group(
     device: &Device,
     view: &TextureView,
     shared_stage_data: &SharedStageData,
-) -> (OutputBindGroupLayout, RenderBindGroup, RenderBuffers) {
+) -> (RenderBindGroupLayout, RenderBindGroup, RenderBuffers) {
     let texture_sampler = device.create_sampler(&SamplerDescriptor {
         label: Some("Sampler for the fragment texture"),
         mag_filter: FilterMode::Nearest, // the way to scale up a pixel in the texture. Take the nearest pixel or linearly interpolate between pixels
