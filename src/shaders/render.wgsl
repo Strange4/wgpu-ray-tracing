@@ -3,7 +3,7 @@ struct VertexOutput {
     @location(0) texture_coordinates: vec2f,
 }
 
-struct FragmentUniform {
+struct SharedStageUniform {
     size: vec2f,
 }
 @group(0) @binding(0)
@@ -12,8 +12,8 @@ var texture_to_render: texture_2d<f32>;
 @group(0) @binding(1)
 var texture_sampler: sampler;
 
-@group(0) @binding(2)
-var<uniform> fragment_uniform: FragmentUniform;
+@group(1) @binding(0)
+var<uniform> fragment_uniform: SharedStageUniform;
 
 // This has to be outside the function or it shit's it's pants
 var<private> vertex_positions: array<vec2f, 6> =  array<vec2f, 6>(

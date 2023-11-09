@@ -1,17 +1,19 @@
 use eframe::wgpu::*;
 
-pub type ComputeBindGroup = [BindGroup; 1];
-pub type RayTracingBindGroupLayout = [BindGroupLayout; 1];
+use super::shared_stage_data::SharedStageData;
+
+pub type ComputeBindGroups = Vec<BindGroup>;
+pub type ComputeBindGroupLayout = Vec<BindGroupLayout>;
 
 /**
  * it returns the bindgroup layout, the texture view needed for the fragment pass
  * and an array containing the indices of all the shared bind group entries
  */
-pub fn get_ray_tracing_bind_group(
+pub fn get_compute_bind_group(
     device: &Device,
     view: &TextureView,
     texture_format: TextureFormat,
-) -> (RayTracingBindGroupLayout, ComputeBindGroup) {
+) -> (ComputeBindGroupLayout, ComputeBindGroups) {
     // the bindgroup will only be used for the compute shader part
     let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
         label: Some("Layout for the compute bind group"),
@@ -36,20 +38,14 @@ pub fn get_ray_tracing_bind_group(
         }],
     });
 
-    ([bind_group_layout], [bind_group])
+    (vec![bind_group_layout], vec![bind_group])
 }
 
 pub fn get_compute_pipeline(
     device: &Device,
-    bind_group_layouts: &[BindGroupLayout],
+    bind_group_layouts: &[&BindGroupLayout],
 ) -> ComputePipeline {
     let shader = device.create_shader_module(include_wgsl!("../shaders/raytracing.wgsl"));
-
-    let bind_group_layouts = bind_group_layouts
-        .iter()
-        .map(|layout| layout)
-        .collect::<Vec<&BindGroupLayout>>();
-    let bind_group_layouts = bind_group_layouts.as_slice();
 
     let layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
         label: Some("Compute Pipeline layout"),

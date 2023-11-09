@@ -10,34 +10,42 @@ use eframe::wgpu::util::DeviceExt;
 
 use renderer::RenderResources;
 
-use self::compute_stage::{get_compute_pipeline, get_ray_tracing_bind_group};
+use self::compute_stage::{get_compute_bind_group, get_compute_pipeline};
 use self::render_stage::{get_output_texture, get_render_bind_group, get_render_pipeline};
-use self::shared_stage_data::get_shared_data;
+use self::shared_stage_data::{get_shared_data, get_shared_stage_bind_group};
 
 pub fn get_render_resources(wgpu_render_state: &eframe::egui_wgpu::RenderState) -> RenderResources {
     let device = &wgpu_render_state.device;
 
     let shared_stage_data = get_shared_data(device);
 
+    let (shared_bind_group_layouts, shared_stage_bind_groups) =
+        get_shared_stage_bind_group(device, &shared_stage_data);
+
     let (texture, texture_view) = get_output_texture(device);
 
     let (compute_bind_group_layouts, compute_bind_groups) =
-        get_ray_tracing_bind_group(device, &texture_view, texture.format());
+        get_compute_bind_group(device, &texture_view, texture.format());
 
-    let (render_bind_group_layouts, render_bind_groups, render_buffers) =
-        get_render_bind_group(device, &texture_view, &shared_stage_data);
-
-    let render_pipeline =
-        get_render_pipeline(device, wgpu_render_state, &render_bind_group_layouts);
-    let compute_pipeline = get_compute_pipeline(device, &compute_bind_group_layouts);
+    let (render_bind_group_layouts, render_bind_groups) =
+        get_render_bind_group(device, &texture_view);
+    let render_pipeline = get_render_pipeline(
+        device,
+        wgpu_render_state,
+        &concat_bind_group_layouts(&render_bind_group_layouts, &shared_bind_group_layouts),
+    );
+    let compute_pipeline = get_compute_pipeline(
+        device,
+        &concat_bind_group_layouts(&compute_bind_group_layouts, &shared_bind_group_layouts),
+    );
     let adapter = &wgpu_render_state.adapter;
     RenderResources {
         render_pipeline,
         render_bind_groups,
         compute_bind_groups,
         compute_pipeline,
-        render_buffers,
         shared_stage_data,
+        shared_stage_bind_groups,
         time_query: get_time_query(device, &adapter),
     }
 }
@@ -71,4 +79,15 @@ fn get_time_query(device: &Device, adapter: &Adapter) -> Option<(QuerySet, Buffe
     });
 
     Some((query_set, read_buffer, write_buffer))
+}
+
+fn concat_bind_group_layouts<'a>(
+    layout1: &'a Vec<BindGroupLayout>,
+    layout2: &'a Vec<BindGroupLayout>,
+) -> Vec<&'a BindGroupLayout> {
+    let mut refs1: Vec<&BindGroupLayout> = layout1.iter().map(|layout| layout).collect();
+    let mut refs2: Vec<&BindGroupLayout> = layout2.iter().map(|layout| layout).collect();
+    refs1.append(&mut refs2);
+
+    refs1
 }

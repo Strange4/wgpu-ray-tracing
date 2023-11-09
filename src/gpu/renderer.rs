@@ -3,17 +3,17 @@ use std::sync::{atomic::AtomicU64, Arc};
 use eframe::egui::Vec2;
 use eframe::egui_wgpu::{self, wgpu::*};
 
-use super::compute_stage::ComputeBindGroup;
-use super::render_stage::{RenderBindGroup, RenderBuffers};
-use super::shared_stage_data::{SharedStageData, SharedStageUniform};
+use super::compute_stage::ComputeBindGroups;
+use super::render_stage::RenderBindGroups;
+use super::shared_stage_data::{SharedStageBindGroup, SharedStageData, SharedStageUniform};
 
 pub struct RenderResources {
     pub render_pipeline: RenderPipeline,
     pub compute_pipeline: ComputePipeline,
-    pub render_bind_groups: RenderBindGroup,
-    pub render_buffers: RenderBuffers,
-    pub compute_bind_groups: ComputeBindGroup,
+    pub render_bind_groups: RenderBindGroups,
+    pub compute_bind_groups: ComputeBindGroups,
     pub shared_stage_data: SharedStageData,
+    pub shared_stage_bind_groups: SharedStageBindGroup,
     pub time_query: Option<(QuerySet, Buffer, Buffer)>,
 }
 
@@ -46,9 +46,6 @@ impl egui_wgpu::CallbackTrait for RenderCallBack {
             let mut compute_pass = encoder.begin_compute_pass(&ComputePassDescriptor {
                 label: Some("Compute pass"),
             });
-            // since the workgroups are 16x16, then the pixels are divided by 16;
-            let width = (self.output_size.x / 16.0) as u32;
-            let height = (self.output_size.y / 16.0) as u32;
             compute_pass.set_pipeline(&resources.compute_pipeline);
             resources.compute_bind_groups.iter().enumerate().for_each(
                 |(index, compute_bind_group)| {
@@ -56,6 +53,20 @@ impl egui_wgpu::CallbackTrait for RenderCallBack {
                 },
             );
 
+            let compute_group_length = resources.compute_bind_groups.len();
+
+            resources
+                .shared_stage_bind_groups
+                .iter()
+                .enumerate()
+                .for_each(|(index, shared_bind_group)| {
+                    let index = (index + compute_group_length) as u32;
+                    compute_pass.set_bind_group(index, shared_bind_group, &[]);
+                });
+
+            // since the workgroups are 16x16, then the pixels are divided by 16;
+            let width = (self.output_size.x / 16.0) as u32;
+            let height = (self.output_size.y / 16.0) as u32;
             compute_pass.dispatch_workgroups(width, height, 1);
         }
 
@@ -117,6 +128,16 @@ impl egui_wgpu::CallbackTrait for RenderCallBack {
             .enumerate()
             .for_each(|(index, render_bind_group)| {
                 render_pass.set_bind_group(index as u32, render_bind_group, &[]);
+            });
+        let render_group_length = resources.render_bind_groups.len();
+
+        resources
+            .shared_stage_bind_groups
+            .iter()
+            .enumerate()
+            .for_each(|(index, shared_bind_group)| {
+                let index = (index + render_group_length) as u32;
+                render_pass.set_bind_group(index, shared_bind_group, &[]);
             });
         render_pass.draw(0..6, 0..1);
     }

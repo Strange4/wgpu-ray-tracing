@@ -2,18 +2,13 @@ use eframe::egui_wgpu::wgpu::*;
 
 use crate::ray_tracer::camera::{OUTPUT_TEXTURE_HEIGHT, OUTPUT_TEXTURE_WIDTH};
 
-use super::shared_stage_data::SharedStageData;
-
-pub type RenderBindGroup = [BindGroup; 1];
-pub type RenderBindGroupLayout = [BindGroupLayout; 1];
-
-pub struct RenderBuffers {}
+pub type RenderBindGroups = Vec<BindGroup>;
+pub type RenderBindGroupLayout = Vec<BindGroupLayout>;
 
 pub fn get_render_bind_group(
     device: &Device,
     view: &TextureView,
-    shared_stage_data: &SharedStageData,
-) -> (RenderBindGroupLayout, RenderBindGroup, RenderBuffers) {
+) -> (RenderBindGroupLayout, RenderBindGroups) {
     let texture_sampler = device.create_sampler(&SamplerDescriptor {
         label: Some("Sampler for the fragment texture"),
         mag_filter: FilterMode::Nearest, // the way to scale up a pixel in the texture. Take the nearest pixel or linearly interpolate between pixels
@@ -42,16 +37,6 @@ pub fn get_render_bind_group(
                 ty: BindingType::Sampler(SamplerBindingType::NonFiltering),
                 count: None,
             },
-            BindGroupLayoutEntry {
-                binding: 2,
-                visibility: ShaderStages::FRAGMENT | ShaderStages::VERTEX,
-                ty: BindingType::Buffer {
-                    ty: BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            },
         ],
     });
 
@@ -67,26 +52,16 @@ pub fn get_render_bind_group(
                 binding: 1,
                 resource: BindingResource::Sampler(&texture_sampler),
             },
-            BindGroupEntry {
-                binding: 2,
-                resource: shared_stage_data.size_update_buffer.as_entire_binding(),
-            },
         ],
     });
-    ([bind_group_layout], [bind_group], RenderBuffers {})
+    (vec![bind_group_layout], vec![bind_group])
 }
 
 pub fn get_render_pipeline(
     device: &Device,
     render_state: &eframe::egui_wgpu::RenderState,
-    bind_group_layouts: &[BindGroupLayout],
+    bind_group_layouts: &[&BindGroupLayout],
 ) -> RenderPipeline {
-    let bind_group_layouts = bind_group_layouts
-        .iter()
-        .map(|layout| layout)
-        .collect::<Vec<&BindGroupLayout>>();
-    let bind_group_layouts = bind_group_layouts.as_slice();
-
     let shader = device.create_shader_module(include_wgsl!("../shaders/render.wgsl"));
 
     let layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
