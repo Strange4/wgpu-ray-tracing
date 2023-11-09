@@ -6,6 +6,7 @@ struct VertexOutput {
 struct SharedStageUniform {
     size: vec2f,
 }
+
 @group(0) @binding(0)
 var texture_to_render: texture_2d<f32>;
 
@@ -13,7 +14,7 @@ var texture_to_render: texture_2d<f32>;
 var texture_sampler: sampler;
 
 @group(1) @binding(0)
-var<uniform> fragment_uniform: SharedStageUniform;
+var<uniform> shared_stage_uniform: SharedStageUniform;
 
 // This has to be outside the function or it shit's it's pants
 var<private> vertex_positions: array<vec2f, 6> =  array<vec2f, 6>(
@@ -32,7 +33,7 @@ var<private> vertex_positions: array<vec2f, 6> =  array<vec2f, 6>(
 fn vertex_main(@builtin(vertex_index) index: u32) -> VertexOutput {
     let texture_dimentions: vec2u = textureDimensions(texture_to_render);
 
-    let texture_percentage_filled: vec2f = fragment_uniform.size / vec2f(texture_dimentions);
+    let texture_percentage_filled: vec2f = shared_stage_uniform.size / vec2f(texture_dimentions);
 
     var output: VertexOutput;
     output.clip_position = vec4f(vertex_positions[index], 0.0, 1.0);

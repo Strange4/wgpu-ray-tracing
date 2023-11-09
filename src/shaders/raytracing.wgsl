@@ -1,6 +1,13 @@
 @group(0) @binding(0)
 var output_color: texture_storage_2d<rgba8unorm, write>;
 
+struct SharedStageUniform {
+    size: vec2f,
+}
+
+@group(1) @binding(0)
+var<uniform> shared_stage_uniform: SharedStageUniform;
+
 @compute
 @workgroup_size(16,16,1)
 fn compute_main(@builtin(global_invocation_id) compute_id: vec3u) {
@@ -13,9 +20,25 @@ fn compute_main(@builtin(global_invocation_id) compute_id: vec3u) {
 
 
 fn get_pixel_color(screen_position: vec2u) -> vec4f {
+
+    // the camera stuff
+    let image_width = shared_stage_uniform.size.x;
+    let image_height = shared_stage_uniform.size.y;
+
+    let aspect_ratio = image_width / image_height;
+
+
+    let viewport_height = 2.0;
+    let viewport_width = viewport_height * aspect_ratio;
+
+    let camera_center = vec3f();
+    let focal_length = 1.0;
+
+    let viewport_u = vec3f(viewport_width, 0.0, 0.0);
     let viewport_v = vec3f(0.0, -viewport_height, 0.0);
     let pixel_delta_u = viewport_u / f32(image_width);
     let pixel_delta_v = viewport_v / f32(image_height);
+
     let viewport_upper_left = camera_center - vec3f(0.0, 0.0, focal_length) - (viewport_u / 2.0) - (viewport_v / 2.0);
     let pixel_00 = viewport_upper_left + 0.5 * (pixel_delta_u + pixel_delta_v);
 
@@ -28,6 +51,7 @@ fn get_pixel_color(screen_position: vec2u) -> vec4f {
 }
 
 const main_sphere = Sphere(0.5, vec3f(0.0, 0.0, -1.0));
+
 fn get_ray_color(ray: Ray) -> vec3f {
     let distance = hit_sphere(main_sphere, ray);
     if(distance > 0.0) {
@@ -41,17 +65,7 @@ fn get_ray_color(ray: Ray) -> vec3f {
 }
 
 
-// the camera stuff
 
-const image_width = 1920;
-const image_height = 1080;
-const viewport_height = 2.0;
-const viewport_width = 3.5555555555;
-
-const camera_center = vec3f();
-const focal_length = 1.0;
-
-const viewport_u = vec3f(viewport_width, 0.0, 0.0);
 
 // Ray part of the code
 
