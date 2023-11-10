@@ -53,11 +53,14 @@ fn get_pixel_color(screen_position: vec2u) -> vec4f {
 const main_sphere = Sphere(0.5, vec3f(0.0, 0.0, -1.0));
 
 fn get_ray_color(ray: Ray) -> vec3f {
-    let distance = hit_sphere(main_sphere, ray);
-    if(distance > 0.0) {
-        let normal = sphere_point_normal(ray_at_distance(ray, distance), main_sphere.center);
-        return 0.5 * (normal + 1.0);
+    var hit_record: HitRecord;
+    if(hit_sphere(main_sphere, ray, 0.0, 9999.0, &hit_record)) {
+        return 0.5 * (hit_record.normal + 1.0);
     }
+    // if(distance > 0.0) {
+    //     let normal = sphere_point_normal(ray_at_distance(ray, distance), main_sphere.center);
+    //     return 0.5 * (normal + 1.0);
+    // }
 
     let unit = normalize(ray.direction);
     let a = 0.5 * (unit.y + 1.0);
@@ -82,6 +85,13 @@ fn ray_at_distance(ray: Ray, t: f32) -> vec3f {
     return ray.origin + t * ray.direction;
 }
 
+// hitting things
+struct HitRecord {
+    point: vec3f,
+    normal: vec3f,
+    distance_from_ray: f32,
+}
+
 
 // Sphere part of the code
 struct Sphere {
@@ -89,16 +99,30 @@ struct Sphere {
     center: vec3f,
 }
 
-fn hit_sphere(sphere: Sphere, ray: Ray) -> f32 {
+fn hit_sphere(sphere: Sphere, ray: Ray, min_distance: f32, max_distance: f32, hit_record: ptr<function ,HitRecord>) -> bool {
     let origin_center = ray.origin - sphere.center;
     let a = length_squared(ray.direction);
     let half_b = dot(origin_center, ray.direction);
     let c = length_squared(origin_center) - sphere.radius * sphere.radius;
     let discriminant = half_b*half_b - a * c;
     if(discriminant < 0.0) {
-        return -1.0;
+        return false;
     }
-    return (-half_b - sqrt(discriminant)) / a;
+    let root = sqrt(discriminant);
+    let root1 =  (-half_b - root) / a;
+    let root2 = (-half_b + root) / a;
+    let out_of_bounds1 = max_distance <= root1 || root1 <= min_distance;
+    let out_of_bounds2 = max_distance <= root2 || root2 <= min_distance;
+    if(out_of_bounds1 && out_of_bounds2) {
+        return false;
+    }
+    let distance = min(root1, root2);
+    let point = ray_at_distance(ray, distance);
+    (*hit_record).distance_from_ray = distance;
+    (*hit_record).point = point;
+    (*hit_record).normal = normalize(point - sphere.center);
+
+    return true;
 }
 
 // point is the point along the surface of the sphere that hit the sphere
