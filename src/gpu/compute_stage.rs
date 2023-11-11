@@ -1,7 +1,5 @@
 use eframe::wgpu::*;
 
-use super::shared_stage_data::SharedStageData;
-
 pub type ComputeBindGroups = Vec<BindGroup>;
 pub type ComputeBindGroupLayout = Vec<BindGroupLayout>;
 

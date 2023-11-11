@@ -1,2 +1,6 @@
+use eframe::epaint::Vec2;
+
 pub const OUTPUT_TEXTURE_WIDTH: u32 = 1920;
 pub const OUTPUT_TEXTURE_HEIGHT: u32 = 1080;
+pub const OUTPUT_TEXTURE_DIMENTIONS: Vec2 =
+    Vec2::new(OUTPUT_TEXTURE_WIDTH as f32, OUTPUT_TEXTURE_HEIGHT as f32);

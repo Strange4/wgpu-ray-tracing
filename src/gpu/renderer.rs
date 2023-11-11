@@ -3,6 +3,10 @@ use std::sync::{atomic::AtomicU64, Arc};
 use eframe::egui::Vec2;
 use eframe::egui_wgpu::{self, wgpu::*};
 
+use crate::ray_tracer::camera::{
+    OUTPUT_TEXTURE_DIMENTIONS, OUTPUT_TEXTURE_HEIGHT, OUTPUT_TEXTURE_WIDTH,
+};
+
 use super::compute_stage::ComputeBindGroups;
 use super::render_stage::RenderBindGroups;
 use super::shared_stage_data::{SharedStageBindGroup, SharedStageData, SharedStageUniform};
@@ -39,7 +43,7 @@ impl egui_wgpu::CallbackTrait for RenderCallBack {
             &resources.shared_stage_data.size_update_buffer,
             0,
             bytemuck::cast_slice(&[SharedStageUniform {
-                size: self.output_size.into(),
+                size: self.output_size.min(OUTPUT_TEXTURE_DIMENTIONS).into(),
             }]),
         );
         {
@@ -65,8 +69,8 @@ impl egui_wgpu::CallbackTrait for RenderCallBack {
                 });
 
             // since the workgroups are 16x16, then the pixels are divided by 16;
-            let width = (self.output_size.x / 16.0) as u32;
-            let height = (self.output_size.y / 16.0) as u32;
+            let width = ((self.output_size.x / 16.0) as u32).min(OUTPUT_TEXTURE_WIDTH);
+            let height = ((self.output_size.y / 16.0) as u32).min(OUTPUT_TEXTURE_HEIGHT);
             compute_pass.dispatch_workgroups(width, height, 1);
         }
 

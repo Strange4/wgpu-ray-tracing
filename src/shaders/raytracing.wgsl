@@ -57,10 +57,6 @@ fn get_ray_color(ray: Ray) -> vec3f {
     if(hit_sphere(main_sphere, ray, 0.0, 9999.0, &hit_record)) {
         return 0.5 * (hit_record.normal + 1.0);
     }
-    // if(distance > 0.0) {
-    //     let normal = sphere_point_normal(ray_at_distance(ray, distance), main_sphere.center);
-    //     return 0.5 * (normal + 1.0);
-    // }
 
     let unit = normalize(ray.direction);
     let a = 0.5 * (unit.y + 1.0);

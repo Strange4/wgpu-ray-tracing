@@ -14,7 +14,6 @@ fn main() -> Result<(), eframe::Error> {
         wgpu_options: eframe::egui_wgpu::WgpuConfiguration {
             device_descriptor: Arc::new(|_| wgpu::DeviceDescriptor {
                 features: wgpu::Features::TIMESTAMP_QUERY,
-                // | wgpu::Features::TIMESTAMP_QUERY_INSIDE_PASSES,
                 ..Default::default()
             }),
             ..Default::default()
